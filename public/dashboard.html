@@ -722,6 +722,7 @@
                                 ${pauseResumeBtn}
                                 ${banUnbanBtn}
                                 <button onclick="openSingleTimeModal('${k.id}', '${k.keyCode}')" class="btn btn-secondary btn-icon" title="Tambah Waktu Lisensi (+Time)"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                                <button onclick="resetDevice('${k.id}', '${k.keyCode}')" class="btn btn-secondary btn-icon" title="Reset Perangkat (HWID)" style="color: #67e8f9;"><i class="fa-solid fa-mobile-screen-button"></i></button>
                                 <button onclick="deleteKey('${k.id}')" class="btn btn-danger btn-icon" title="Hapus Lisensi"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </td>
@@ -737,6 +738,27 @@
                 'Serial Key Disalin!',
                 `Kode serial key [${code}] berhasil disalin ke clipboard Anda.`
             );
+        }
+
+        // Reset Device (HWID) Function
+        async function resetDevice(id, keyCode) {
+            if (!confirm(`Reset perangkat untuk key [${keyCode}]?\n\nSetelah direset, key bisa digunakan di perangkat lain.`)) return;
+            try {
+                const res = await fetch('/api/admin/keys/reset-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showVerifiedGUI('Reset Perangkat Berhasil!', `Key [${keyCode}] sudah direset. Device baru bisa menggunakan key ini.`);
+                    loadKeys();
+                } else {
+                    showAlert(data.message || 'Gagal reset perangkat.', 'danger');
+                }
+            } catch (e) {
+                showAlert('Terjadi error saat reset perangkat.', 'danger');
+            }
         }
 
         // Filter Tabs Click
