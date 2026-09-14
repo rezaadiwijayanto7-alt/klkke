@@ -1,271 +1,165 @@
-const express = require('express');
+﻿const express = require('express');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
-const cors = require('cors');
-const path = require('path');
-const db = require('./db');
+const bcrypt  = require('bcryptjs');
+const cors    = require('cors');
+const path    = require('path');
+const db      = require('./db');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Inisialisasi DB
-db.initDB();
+// Init DB
+db.initDB().catch(err => { console.error('DB init error:', err); process.exit(1); });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-    secret: 'secret-key-auct-super-secure-12345-human-ui',
+    secret: process.env.SESSION_SECRET || 'auct-secret-key-2024',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 jam
+    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// Middleware Auth untuk Admin
+// ─── Middleware Admin Auth ───
 function requireAdmin(req, res, next) {
-    if (req.session && req.session.user && req.session.user.role === 'admin') {
-        return next();
-    }
-    return res.status(401).json({ success: false, message: 'Akses ditolak. Silakan login terlebih dahulu.' });
+    if (req.session && req.session.isAdmin) return next();
+    return res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
 }
 
-// Serve Static Files dari folder public
-app.use(express.static(path.join(__dirname, 'public')));
+// ─── PUBLIC ROUTES ───
 
-// ----------------------------------------------------
-// AUTH ROUTES
-// ----------------------------------------------------
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'Username dan Password wajib diisi.' });
-    }
-
-    const user = db.findUserByUsername(username);
-    if (!user) {
-        return res.status(401).json({ success: false, message: 'Username atau Password salah!' });
-    }
-
-    const isMatch = bcrypt.compareSync(password, user.passwordHash);
-    if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Username atau Password salah!' });
-    }
-
-    // Set Session
-    req.session.user = {
-        id: user.id,
-        username: user.username,
-        role: user.role
-    };
-
-    res.json({
-        success: true,
-        message: 'Login berhasil! Selamat datang kembali.',
-        user: req.session.user
-    });
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) return res.status(400).json({ success: false, message: 'Username dan password wajib diisi.' });
+        const user = await db.findUserByUsername(username);
+        if (!user) return res.status(401).json({ success: false, message: 'Username atau password salah.' });
+        const valid = await bcrypt.compare(password, user.password_hash);
+        if (!valid) return res.status(401).json({ success: false, message: 'Username atau password salah.' });
+        req.session.isAdmin = true;
+        req.session.adminUser = user.username;
+        res.json({ success: true, message: 'Login berhasil.' });
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 app.post('/api/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) return res.status(500).json({ success: false, message: 'Gagal logout.' });
-        res.clearCookie('connect.sid');
-        res.json({ success: true, message: 'Logout berhasil.' });
-    });
+    req.session.destroy();
+    res.json({ success: true });
 });
 
-app.get('/api/me', (req, res) => {
-    if (req.session && req.session.user) {
-        return res.json({ authenticated: true, user: req.session.user });
-    }
-    res.json({ authenticated: false });
+app.get('/api/session', (req, res) => {
+    res.json({ isAdmin: !!(req.session && req.session.isAdmin), user: req.session.adminUser || null });
 });
 
-// ----------------------------------------------------
-// PUBLIC API: VERIFY & REDEEM LISENSI
-// ----------------------------------------------------
-
-// Cek status key tanpa klaim
-app.post('/api/verify', (req, res) => {
-    const { key, hwid } = req.body;
-    if (!key) {
-        return res.status(400).json({ valid: false, message: 'Serial Key Lisensi wajib diisi!' });
-    }
-
-    const result = db.verifyKeyStatus(key, hwid || null);
-    res.json(result);
+app.post('/api/verify', async (req, res) => {
+    try {
+        const { key, hwid } = req.body;
+        if (!key) return res.status(400).json({ valid: false, message: 'Serial Key Lisensi wajib diisi!' });
+        const result = await db.verifyKeyStatus(key, hwid || null);
+        res.json(result);
+    } catch (e) { res.status(500).json({ valid: false, message: e.message }); }
 });
 
-// Klaim Lisensi (Redeem / Activate)
-app.post('/api/redeem', (req, res) => {
-    const { key, identifier, hwid } = req.body;
-    if (!key) {
-        return res.status(400).json({ success: false, message: 'Serial Key Lisensi wajib diisi!' });
-    }
-
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    const result = db.redeemKey(key, {
-        identifier: identifier || 'Web Client / User',
-        ip: clientIp,
-        hwid: hwid || null
-    });
-
-    if (!result.success) {
-        return res.status(400).json(result);
-    }
-    res.json(result);
+app.post('/api/redeem', async (req, res) => {
+    try {
+        const { key, identifier, hwid } = req.body;
+        if (!key) return res.status(400).json({ success: false, message: 'Serial Key Lisensi wajib diisi!' });
+        const clientInfo = { identifier: identifier || 'User', ip: req.ip || req.connection.remoteAddress, hwid: hwid || null };
+        const result = await db.redeemKey(key, clientInfo);
+        if (!result.success) return res.status(400).json(result);
+        res.json(result);
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ----------------------------------------------------
-// ADMIN ROUTES (PROTECTED)
-// ----------------------------------------------------
+// ─── ADMIN ROUTES ───
 
-// Ambil Stats Dashboard
-app.get('/api/admin/stats', requireAdmin, (req, res) => {
-    const stats = db.getStats();
-    res.json({ success: true, stats });
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+    try { res.json(await db.getStats()); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Ambil semua lisensi key
-app.get('/api/admin/keys', requireAdmin, (req, res) => {
-    const keys = db.getAllKeys();
-    res.json({ success: true, keys });
+app.get('/api/admin/keys', requireAdmin, async (req, res) => {
+    try { res.json({ success: true, keys: await db.getAllKeys() }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Generate Lisensi Key Baru (Single, Durasi, Lifetime)
-app.post('/api/admin/keys/generate', requireAdmin, (req, res) => {
-    const { count, note, prefix, durationType, durationDays } = req.body;
-    const amount = parseInt(count, 10) || 1;
-    
-    if (amount < 1 || amount > 100) {
-        return res.status(400).json({ success: false, message: 'Jumlah key yang dibuat antara 1 - 100.' });
-    }
-
-    const generated = db.generateKeys({
-        count: amount,
-        note: note || '',
-        prefix: prefix || 'KEY',
-        durationType: durationType || 'single',
-        durationDays: parseInt(durationDays, 10) || 0
-    });
-
-    res.json({
-        success: true,
-        message: `Berhasil membuat ${generated.length} lisensi key baru!`,
-        keys: generated
-    });
+app.post('/api/admin/keys/generate', requireAdmin, async (req, res) => {
+    try {
+        const { durationType, durationDays, count, note, prefix } = req.body;
+        const result = await db.generateKeys({ durationType, durationDays: parseInt(durationDays) || 0, count: parseInt(count) || 1, note: note || '', prefix: prefix || 'KEY' });
+        res.json(result);
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Hapus Key
-app.delete('/api/admin/keys/:id', requireAdmin, (req, res) => {
-    const { id } = req.params;
-    const success = db.deleteKey(id);
-    if (!success) {
-        return res.status(404).json({ success: false, message: 'Key tidak ditemukan.' });
-    }
-    res.json({ success: true, message: 'Key berhasil dihapus.' });
+app.delete('/api/admin/keys/:id', requireAdmin, async (req, res) => {
+    try { res.json(await db.deleteKey(req.params.id)); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Ban Key
-app.post('/api/admin/keys/ban', requireAdmin, (req, res) => {
-    const { id, reason } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.banKey(id, reason || 'Pelanggaran ketentuan penggunaan');
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/keys/ban', requireAdmin, async (req, res) => {
+    try { res.json(await db.banKey(req.body.id, req.body.reason || '')); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Unban Key
-app.post('/api/admin/keys/unban', requireAdmin, (req, res) => {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.unbanKey(id);
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/keys/unban', requireAdmin, async (req, res) => {
+    try { res.json(await db.unbanKey(req.body.id)); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Jeda (Pause) Lisensi Tertentu
-app.post('/api/admin/keys/pause', requireAdmin, (req, res) => {
-    const { id, reason } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.pauseKey(id, reason || 'Lisensi dijeda oleh admin');
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/keys/pause', requireAdmin, async (req, res) => {
+    try { res.json(await db.pauseKey(req.body.id, req.body.reason || '')); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Lanjutkan (Resume) Lisensi Tertentu
-app.post('/api/admin/keys/resume', requireAdmin, (req, res) => {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.resumeKey(id);
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/keys/resume', requireAdmin, async (req, res) => {
+    try { res.json(await db.resumeKey(req.body.id)); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Tambah Waktu Lisensi Tertentu
-app.post('/api/admin/keys/add-time', requireAdmin, (req, res) => {
-    const { id, amount, unit } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.addTimeKey(id, amount, unit || 'days');
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/keys/add-time', requireAdmin, async (req, res) => {
+    try {
+        const { id, amount, unit } = req.body;
+        res.json(await db.addTimeKey(id, parseInt(amount) || 1, unit || 'days'));
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Tambah Waktu Lisensi ke SEMUA User (Bulk Compensation / Bonus)
-app.post('/api/admin/keys/add-time-all', requireAdmin, (req, res) => {
-    const { amount, unit, target } = req.body;
-    const num = parseInt(amount, 10) || 0;
-    if (num <= 0) {
-        return res.status(400).json({ success: false, message: 'Jumlah waktu harus lebih besar dari 0!' });
-    }
-
-    const result = db.addTimeToAllKeys(num, unit || 'days', target || 'all');
-    res.json(result);
+app.post('/api/admin/keys/add-time-all', requireAdmin, async (req, res) => {
+    try {
+        const { amount, unit, target } = req.body;
+        res.json(await db.addTimeToAllKeys(parseInt(amount) || 1, unit || 'days', target || 'active'));
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Mode Jeda Global (Global Maintenance / Pause All)
-app.post('/api/admin/global-pause', requireAdmin, (req, res) => {
-    const { enable, reason } = req.body;
-    const result = db.setGlobalPause(!!enable, reason || '');
-    res.json(result);
+app.post('/api/admin/keys/reset-device', requireAdmin, async (req, res) => {
+    try { res.json(await db.resetKeyDevice(req.body.id)); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Reset Perangkat / HWID Key
-app.post('/api/admin/keys/reset-device', requireAdmin, (req, res) => {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ success: false, message: 'ID atau Key wajib disertakan.' });
-
-    const result = db.resetKeyDevice(id);
-    if (!result.success) return res.status(400).json(result);
-    res.json(result);
+app.post('/api/admin/global-pause', requireAdmin, async (req, res) => {
+    try {
+        const { enabled, reason } = req.body;
+        res.json(await db.setGlobalPause(!!enabled, reason || ''));
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Ambil Audit Logs
-app.get('/api/admin/logs', requireAdmin, (req, res) => {
-    const logs = db.getLogs();
-    res.json({ success: true, logs });
+app.get('/api/admin/logs', requireAdmin, async (req, res) => {
+    try { res.json({ success: true, logs: await db.getLogs() }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Fallback Route untuk SPA / Direct Access
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
+// ─── PAGE ROUTES ───
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// Start Server
 app.listen(PORT, () => {
-    console.log(`================================================`);
-    console.log(`🚀 Key Auth System berjalan pada port ${PORT}`);
-    console.log(`🌐 Server URL   : http://localhost:${PORT}`);
-    console.log(`🔑 Default Admin: admin / admin123`);
-    console.log(`================================================`);
+    console.log('');
+    console.log('================================================');
+    console.log(`  Key Auth System berjalan pada port ${PORT}`);
+    console.log(`  URL: http://localhost:${PORT}`);
+    console.log('  DB : PostgreSQL (Railway)');
+    console.log('================================================');
+    console.log('');
 });
