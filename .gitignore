@@ -8,10 +8,10 @@ node_modules/
 *.log
 npm-debug.log*
 
-# Environment variables (jika pakai .env nanti)
+# Environment
 .env
 .env.local
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
