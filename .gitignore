@@ -1,0 +1,17 @@
+﻿# Database lisensi - JANGAN diupload (berisi semua serial key!)
+data/db.json
+
+# Dependencies Node.js
+node_modules/
+
+# Log files
+*.log
+npm-debug.log*
+
+# Environment variables (jika pakai .env nanti)
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

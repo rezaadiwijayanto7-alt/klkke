@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Kontrol Admin - AUCT Key Auth System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/dashboard" class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-cube"></i>
+            </div>
+            <span>AUCT Control Center</span>
+        </a>
+        <div class="nav-links">
+            <span id="userBadge" style="color: var(--text-secondary); font-size: 0.88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-circle-user" style="color: var(--brand-blue);"></i> Administrator
+            </span>
+            <a href="/" target="_blank" class="nav-link"><i class="fa-solid fa-up-right-from-square"></i> Portal Verifikasi</a>
+            <button id="btnLogout" class="btn btn-danger btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- Global Pause Banner (Aktif jika mode jeda global menyala) -->
+        <div id="globalPauseBanner" class="global-pause-banner" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.3rem;"></i>
+                <div>
+                    <strong>MODE JEDA GLOBAL SEDANG AKTIF:</strong>
+                    <span id="globalPauseReasonText">Sistem dalam status jeda pemeliharaan.</span>
+                </div>
+            </div>
+            <button id="btnDisableGlobalPause" class="btn btn-success btn-sm">
+                <i class="fa-solid fa-play"></i> Nonaktifkan Jeda Global
+            </button>
+        </div>
+
+        <!-- Header Dashboard & Quick Actions -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.02em;">Manajemen Lisensi & Pengguna</h1>
+                <p style="color: var(--text-secondary); font-size: 0.92rem;">Kelola durasi, jeda waktu, pemblokiran, dan pembuatan lisensi secara terpusat.</p>
+            </div>
+            <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+                <button id="btnOpenGlobalPauseModal" class="btn btn-warning btn-sm">
+                    <i class="fa-solid fa-pause"></i> Jeda Semua Lisensi
+                </button>
+                <button id="btnOpenBulkTimeModal" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-clock-rotate-left"></i> + Waktu Semua User
+                </button>
+                <button id="btnOpenGenModal" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-plus"></i> Generate Lisensi Baru
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Notification -->
+        <div id="dashAlert" class="alert"></div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Total Lisensi</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--brand-blue);">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Aktif & Siap</div>
+                    <div class="stat-value" id="statActive" style="color: #34d399;">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--brand-emerald);">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Dijeda (Frozen)</div>
+                    <div class="stat-value" id="statPaused" style="color: #fbbf24;">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--brand-amber);">
+                    <i class="fa-solid fa-pause"></i>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Diblokir (Banned)</div>
+                    <div class="stat-value" id="statBanned" style="color: #fda4af;">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(244, 63, 94, 0.15); color: var(--brand-rose);">
+                    <i class="fa-solid fa-ban"></i>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Terpakai / Habis</div>
+                    <div class="stat-value" id="statUsed" style="color: #94a3b8;">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(148, 163, 184, 0.12); color: var(--text-secondary);">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel Manajemen Lisensi -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                <h3 class="card-title" style="margin-bottom: 0;">
+                    <i class="fa-solid fa-table-list" style="color: var(--brand-blue);"></i> Data Lisensi
+                </h3>
+                
+                <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="searchKey" class="form-control" placeholder="Cari kode key, catatan, atau user..." style="padding: 0.5rem 0.9rem; font-size: 0.88rem; width: 260px;">
+                    <button id="btnExportKeys" class="btn btn-secondary btn-sm" title="Ekspor daftar lisensi ke teks">
+                        <i class="fa-solid fa-file-arrow-down"></i> Ekspor
+                    </button>
+                    <button id="btnRefresh" class="btn btn-secondary btn-sm" title="Muat ulang data">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Filter Kategori -->
+            <div class="filter-tabs">
+                <button class="tab-pill active" data-filter="all">Semua Lisensi (<span id="filterCountAll">0</span>)</button>
+                <button class="tab-pill" data-filter="active">Aktif (<span id="filterCountActive">0</span>)</button>
+                <button class="tab-pill" data-filter="paused">Dijeda (Paused) (<span id="filterCountPaused">0</span>)</button>
+                <button class="tab-pill" data-filter="banned">Diblokir (Banned) (<span id="filterCountBanned">0</span>)</button>
+                <button class="tab-pill" data-filter="used">Terpakai / Expired (<span id="filterCountUsed">0</span>)</button>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Serial Key</th>
+                            <th>Tipe & Durasi</th>
+                            <th>Status</th>
+                            <th>Masa Berlaku / Sisa Waktu</th>
+                            <th>Pengguna / Device</th>
+                            <th style="text-align: right;">Aksi Kontrol</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keysTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Memuat data lisensi...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Log Aktivitas Audit -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="card-title" style="margin-bottom: 0;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: var(--brand-purple);"></i> Catatan Aktivitas Sistem (Audit Logs)
+                </h3>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">Maks. 150 entri terbaru</span>
+            </div>
+            <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 180px;">Waktu</th>
+                            <th style="width: 160px;">Aksi</th>
+                            <th>Keterangan Aktivitas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-secondary);">Memuat log aktivitas...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: GENERATE LISENSI BARU                            -->
+    <!-- ======================================================= -->
+    <div id="genModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--brand-purple);"></i> Buat Lisensi Key Baru</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">Tentukan jumlah, prefix, dan jenis masa aktif lisensi.</p>
+
+            <form id="genForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="prefix">Prefix Kode Key</label>
+                        <input type="text" id="prefix" class="form-control" value="KEY" placeholder="Contoh: VIP, AUCT, BOT">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="count">Jumlah Key (1 - 100)</label>
+                        <input type="number" id="count" class="form-control" value="1" min="1" max="100" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="durationType">Tipe Masa Berlaku / Durasi</label>
+                    <select id="durationType" class="form-select">
+                        <option value="single">Lisensi 1x Pakai (Single Use / Burn Key)</option>
+                        <option value="1_day">1 Hari (24 Jam)</option>
+                        <option value="7_days">7 Hari (1 Minggu)</option>
+                        <option value="30_days">30 Hari (1 Bulan)</option>
+                        <option value="90_days">90 Hari (3 Bulan)</option>
+                        <option value="365_days">365 Hari (1 Tahun)</option>
+                        <option value="lifetime">Aktif Selamanya (Lifetime)</option>
+                        <option value="custom">Kustom Jumlah Hari...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="customDaysGroup" style="display: none;">
+                    <label class="form-label" for="durationDays">Durasi Kustom (Hari)</label>
+                    <input type="number" id="durationDays" class="form-control" value="14" min="1" max="3650">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="note">Catatan / Keterangan Lisensi</label>
+                    <input type="text" id="note" class="form-control" placeholder="Contoh: Pembelian via WhatsApp / Paket Pro">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('genModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-bolt"></i> Generate Sekarang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: TAMBAH WAKTU SEMUA USER (BULK ADD TIME)          -->
+    <!-- ======================================================= -->
+    <div id="bulkTimeModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--brand-emerald);"></i> Tambah Waktu ke Semua User</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Tambahkan bonus atau kompensasi durasi masa aktif ke seluruh lisensi pengguna secara serentak.
+            </p>
+
+            <form id="bulkTimeForm">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="bulkAmount">Jumlah Tambahan Waktu</label>
+                        <input type="number" id="bulkAmount" class="form-control" value="1" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="bulkUnit">Satuan</label>
+                        <select id="bulkUnit" class="form-select">
+                            <option value="days">Hari</option>
+                            <option value="hours">Jam</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="bulkTarget">Target Lisensi</label>
+                    <select id="bulkTarget" class="form-select">
+                        <option value="all">Semua Lisensi (Aktif & Sedang Dijeda)</option>
+                        <option value="active_only">Hanya Lisensi yang Sedang Aktif</option>
+                        <option value="paused_only">Hanya Lisensi yang Sedang Dijeda</option>
+                    </select>
+                </div>
+
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.75rem 1rem; border-radius: var(--radius-sm); font-size: 0.82rem; color: #93c5fd; margin-bottom: 1.25rem;">
+                    <i class="fa-solid fa-circle-info"></i> Lisensi yang dibanned (diblokir) tidak akan terdampak penambahan waktu.
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bulkTimeModal')">Batal</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Terapkan ke Semua</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: TAMBAH WAKTU PER KEY                             -->
+    <!-- ======================================================= -->
+    <div id="singleTimeModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-calendar-plus" style="color: var(--brand-blue);"></i> Tambah Waktu Lisensi</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Menambahkan waktu aktif untuk serial key: <strong id="singleTimeKeyDisplay" class="code-pill"></strong>
+            </p>
+
+            <form id="singleTimeForm">
+                <input type="hidden" id="singleTimeKeyId">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="singleTimeAmount">Jumlah Tambahan</label>
+                        <input type="number" id="singleTimeAmount" class="form-control" value="7" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="singleTimeUnit">Satuan</label>
+                        <select id="singleTimeUnit" class="form-select">
+                            <option value="days">Hari</option>
+                            <option value="hours">Jam</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('singleTimeModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Tambahkan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: BAN LISENSI                                      -->
+    <!-- ======================================================= -->
+    <div id="banModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-ban" style="color: var(--brand-rose);"></i> Blokir (Ban) Lisensi</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Lisensi yang diblokir tidak akan bisa diverifikasi atau digunakan kembali oleh klien.
+            </p>
+
+            <form id="banForm">
+                <input type="hidden" id="banKeyId">
+                <div class="form-group">
+                    <label class="form-label">Serial Key Target</label>
+                    <div id="banKeyDisplay" class="code-pill" style="display: inline-block; font-size: 1rem;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="banReason">Alasan Pemblokiran (Wajib)</label>
+                    <input type="text" id="banReason" class="form-control" placeholder="Contoh: Berbagi key publik / Pelanggaran ToS" required>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('banModal')">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="fa-solid fa-gavel"></i> Eksekusi Ban</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: JEDA LISENSI (PAUSE)                             -->
+    <!-- ======================================================= -->
+    <div id="pauseModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-pause" style="color: var(--brand-amber);"></i> Jeda (Bekukan) Lisensi</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Hitungan mundur sisa masa aktif akan <strong>dibekukan</strong> dan tidak akan berkurang sampai Anda melanjutkannya kembali.
+            </p>
+
+            <form id="pauseForm">
+                <input type="hidden" id="pauseKeyId">
+                <div class="form-group">
+                    <label class="form-label">Serial Key</label>
+                    <div id="pauseKeyDisplay" class="code-pill" style="display: inline-block; font-size: 1rem;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pauseReason">Alasan Jeda (Opsional)</label>
+                    <input type="text" id="pauseReason" class="form-control" placeholder="Contoh: Permintaan pengguna / maintenance sementara">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('pauseModal')">Batal</button>
+                    <button type="submit" class="btn btn-warning"><i class="fa-solid fa-snowflake"></i> Bekukan Waktu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL: GLOBAL PAUSE                                     -->
+    <!-- ======================================================= -->
+    <div id="globalPauseModal" class="modal-backdrop">
+        <div class="modal-dialog form-modal-dialog">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-triangle-exclamation" style="color: var(--brand-amber);"></i> Mode Jeda Global (Maintenance)</h3>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Saat mode ini aktif, semua verifikasi lisensi di seluruh aplikasi akan dijeda secara serentak.
+            </p>
+
+            <form id="globalPauseForm">
+                <div class="form-group">
+                    <label class="form-label" for="globalReason">Alasan Pemeliharaan / Jeda</label>
+                    <input type="text" id="globalReason" class="form-control" placeholder="Contoh: Pemeliharaan server pusat (14:00 - 16:00)" required>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('globalPauseModal')">Batal</button>
+                    <button type="submit" class="btn btn-warning"><i class="fa-solid fa-pause"></i> Aktifkan Jeda Global</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- GUI CENTANG BIRU (VERIFIED BLUE MODAL FEEDBACK)         -->
+    <!-- ======================================================= -->
+    <div id="verifiedModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="verified-icon-wrapper">
+                <div class="verified-circle-glow"></div>
+                <svg class="svg-verified-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            </div>
+
+            <h2 id="modalVerifiedTitle" class="modal-title-verified">Aksi Berhasil Dijalankan!</h2>
+            <p id="modalVerifiedDesc" class="modal-desc-verified">Perubahan telah disimpan ke server secara real-time.</p>
+
+            <div id="modalVerifiedInfo" class="modal-info-box" style="display: none;"></div>
+
+            <button type="button" id="btnCloseVerifiedModal" class="btn btn-primary" style="width: 100%;">
+                <i class="fa-solid fa-check"></i> Selesai
+            </button>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 AUCT Key Auth System — Admin Console
+    </footer>
+
+    <script>
+        const dashAlert = document.getElementById('dashAlert');
+        const btnLogout = document.getElementById('btnLogout');
+        const keysTableBody = document.getElementById('keysTableBody');
+        const logsTableBody = document.getElementById('logsTableBody');
+        const searchKey = document.getElementById('searchKey');
+        const btnRefresh = document.getElementById('btnRefresh');
+        const btnExportKeys = document.getElementById('btnExportKeys');
+
+        // Global Pause Banner & Buttons
+        const globalPauseBanner = document.getElementById('globalPauseBanner');
+        const globalPauseReasonText = document.getElementById('globalPauseReasonText');
+        const btnDisableGlobalPause = document.getElementById('btnDisableGlobalPause');
+        const btnOpenGlobalPauseModal = document.getElementById('btnOpenGlobalPauseModal');
+
+        // Modals
+        const btnOpenGenModal = document.getElementById('btnOpenGenModal');
+        const btnOpenBulkTimeModal = document.getElementById('btnOpenBulkTimeModal');
+        const durationTypeSelect = document.getElementById('durationType');
+        const customDaysGroup = document.getElementById('customDaysGroup');
+
+        // Verified Blue Checkmark Modal
+        const verifiedModal = document.getElementById('verifiedModal');
+        const modalVerifiedTitle = document.getElementById('modalVerifiedTitle');
+        const modalVerifiedDesc = document.getElementById('modalVerifiedDesc');
+        const modalVerifiedInfo = document.getElementById('modalVerifiedInfo');
+        const btnCloseVerifiedModal = document.getElementById('btnCloseVerifiedModal');
+
+        let allKeys = [];
+        let currentFilter = 'all';
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('show');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        // Close on backdrop click
+        document.querySelectorAll('.modal-backdrop').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('show');
+            });
+        });
+
+        function showVerifiedGUI(title, desc, infoHtml = null) {
+            modalVerifiedTitle.innerText = title;
+            modalVerifiedDesc.innerText = desc;
+            if (infoHtml) {
+                modalVerifiedInfo.innerHTML = infoHtml;
+                modalVerifiedInfo.style.display = 'block';
+            } else {
+                modalVerifiedInfo.style.display = 'none';
+            }
+            verifiedModal.classList.add('show');
+        }
+
+        btnCloseVerifiedModal.addEventListener('click', () => {
+            verifiedModal.classList.remove('show');
+        });
+
+        function showAlert(msg, type = 'danger') {
+            dashAlert.className = `alert alert-${type}`;
+            dashAlert.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${msg}`;
+            dashAlert.style.display = 'block';
+            setTimeout(() => { dashAlert.style.display = 'none'; }, 4000);
+        }
+
+        // Cek Auth
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/me');
+                const data = await res.json();
+                if (!data.authenticated) window.location.href = '/login';
+            } catch (err) {
+                window.location.href = '/login';
+            }
+        }
+
+        // Logout
+        btnLogout.addEventListener('click', async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        });
+
+        // Toggle Custom Days Input
+        durationTypeSelect.addEventListener('change', () => {
+            customDaysGroup.style.display = durationTypeSelect.value === 'custom' ? 'block' : 'none';
+        });
+
+        // Open Modal Triggers
+        btnOpenGenModal.addEventListener('click', () => openModal('genModal'));
+        btnOpenBulkTimeModal.addEventListener('click', () => openModal('bulkTimeModal'));
+        btnOpenGlobalPauseModal.addEventListener('click', () => openModal('globalPauseModal'));
+
+        // Fetch Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                if (data.success && data.stats) {
+                    const s = data.stats;
+                    document.getElementById('statTotal').innerText = s.total;
+                    document.getElementById('statActive').innerText = s.active;
+                    document.getElementById('statPaused').innerText = s.paused;
+                    document.getElementById('statBanned').innerText = s.banned;
+                    document.getElementById('statUsed').innerText = (s.used + s.expired);
+
+                    // Filter Counts
+                    document.getElementById('filterCountAll').innerText = s.total;
+                    document.getElementById('filterCountActive').innerText = s.active;
+                    document.getElementById('filterCountPaused').innerText = s.paused;
+                    document.getElementById('filterCountBanned').innerText = s.banned;
+                    document.getElementById('filterCountUsed').innerText = (s.used + s.expired);
+
+                    // Global Pause State
+                    if (s.globalPause) {
+                        globalPauseBanner.style.display = 'flex';
+                        globalPauseReasonText.innerText = s.globalPauseReason || 'Sistem dalam mode pemeliharaan.';
+                        btnOpenGlobalPauseModal.style.display = 'none';
+                    } else {
+                        globalPauseBanner.style.display = 'none';
+                        btnOpenGlobalPauseModal.style.display = 'inline-flex';
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Fetch Keys
+        async function loadKeys() {
+            try {
+                const res = await fetch('/api/admin/keys');
+                const data = await res.json();
+                if (data.success) {
+                    allKeys = data.keys;
+                    applyFilterAndRender();
+                }
+            } catch (e) {
+                showAlert('Gagal memuat data key dari server.', 'danger');
+            }
+        }
+
+        // Fetch Logs
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/admin/logs');
+                const data = await res.json();
+                if (data.success && data.logs) {
+                    if (data.logs.length === 0) {
+                        logsTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">Belum ada riwayat aktivitas.</td></tr>`;
+                        return;
+                    }
+                    logsTableBody.innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+                                ${new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                            <td><span class="badge badge-active" style="font-size: 0.72rem;">${log.action}</span></td>
+                            <td style="font-size: 0.86rem;">${log.details}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {}
+        }
+
+        function applyFilterAndRender() {
+            const query = searchKey.value.toLowerCase().trim();
+            let filtered = allKeys;
+
+            if (currentFilter !== 'all') {
+                if (currentFilter === 'active') filtered = filtered.filter(k => k.currentStatus === 'active');
+                else if (currentFilter === 'paused') filtered = filtered.filter(k => k.currentStatus === 'paused');
+                else if (currentFilter === 'banned') filtered = filtered.filter(k => k.currentStatus === 'banned');
+                else if (currentFilter === 'used') filtered = filtered.filter(k => k.currentStatus === 'used' || k.currentStatus === 'expired');
+            }
+
+            if (query) {
+                filtered = filtered.filter(k => 
+                    k.keyCode.toLowerCase().includes(query) ||
+                    (k.note && k.note.toLowerCase().includes(query)) ||
+                    (k.usedBy && k.usedBy.toLowerCase().includes(query)) ||
+                    (k.ipAddress && k.ipAddress.toLowerCase().includes(query))
+                );
+            }
+
+            renderKeysTable(filtered);
+        }
+
+        function renderKeysTable(keys) {
+            if (keys.length === 0) {
+                keysTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2.5rem 1rem;">
+                            <i class="fa-solid fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.4;"></i>
+                            Tidak ada lisensi key yang sesuai dengan filter atau pencarian.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            keysTableBody.innerHTML = keys.map(k => {
+                let statusBadge = '';
+                if (k.currentStatus === 'active') {
+                    statusBadge = `<span class="badge badge-active"><i class="fa-solid fa-circle-check"></i> Aktif</span>`;
+                } else if (k.currentStatus === 'paused') {
+                    statusBadge = `<span class="badge badge-paused" title="${k.pauseReason || ''}"><i class="fa-solid fa-pause"></i> Dijeda</span>`;
+                } else if (k.currentStatus === 'banned') {
+                    statusBadge = `<span class="badge badge-banned" title="${k.banReason || ''}"><i class="fa-solid fa-ban"></i> Banned</span>`;
+                } else {
+                    statusBadge = `<span class="badge badge-used"><i class="fa-solid fa-lock"></i> ${k.statusLabel || 'Terpakai'}</span>`;
+                }
+
+                // Tipe Durasi Label
+                let durationLabel = '1x Pakai';
+                if (k.durationType === 'lifetime') durationLabel = 'Lifetime';
+                else if (k.durationDays > 0) durationLabel = `${k.durationDays} Hari`;
+
+                // Masa Berlaku / Sisa Waktu
+                let expiryInfo = '-';
+                if (k.currentStatus === 'paused' && k.remainingTimeMs) {
+                    const remHours = Math.round(k.remainingTimeMs / (1000 * 60 * 60));
+                    expiryInfo = `<span style="color: #fbbf24;"><i class="fa-solid fa-snowflake"></i> Dibekukan (~${remHours} Jam tersisa)</span>`;
+                } else if (k.expiresAt) {
+                    expiryInfo = `<span>${new Date(k.expiresAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</span>`;
+                } else if (k.durationType === 'lifetime') {
+                    expiryInfo = `<span style="color: #34d399;">Selamanya (Lifetime)</span>`;
+                } else if (k.durationType === 'single') {
+                    expiryInfo = k.isUsed 
+                        ? `<span style="color: var(--text-secondary);">Diklaim: ${new Date(k.usedAt).toLocaleDateString('id-ID')}</span>`
+                        : `<span style="color: #67e8f9;">Siap Pakai (1x)</span>`;
+                } else {
+                    expiryInfo = `<span style="color: var(--text-secondary);">Belum Diaktivasi</span>`;
+                }
+
+                // Pengguna Info
+                let userInfo = '<span style="color: var(--text-secondary); font-size: 0.8rem;">-</span>';
+                if (k.usedBy) {
+                    userInfo = `
+                        <div style="font-size: 0.84rem;">
+                            <div style="font-weight: 600;"><i class="fa-solid fa-user"></i> ${k.usedBy}</div>
+                            <div style="color: var(--text-secondary); font-size: 0.76rem;">IP: ${k.ipAddress || '-'}</div>
+                        </div>
+                    `;
+                }
+
+                // Action Buttons
+                const isBanned = k.currentStatus === 'banned';
+                const isPaused = k.currentStatus === 'paused';
+
+                const pauseResumeBtn = isPaused
+                    ? `<button onclick="resumeKey('${k.id}')" class="btn btn-success btn-icon" title="Lanjutkan (Resume) Lisensi"><i class="fa-solid fa-play"></i></button>`
+                    : `<button onclick="openPauseModal('${k.id}', '${k.keyCode}')" class="btn btn-warning btn-icon" title="Jeda (Pause) Lisensi"><i class="fa-solid fa-pause"></i></button>`;
+
+                const banUnbanBtn = isBanned
+                    ? `<button onclick="unbanKey('${k.id}')" class="btn btn-success btn-icon" title="Buka Blokir (Unban)"><i class="fa-solid fa-shield"></i></button>`
+                    : `<button onclick="openBanModal('${k.id}', '${k.keyCode}')" class="btn btn-danger btn-icon" title="Blokir (Ban) Lisensi"><i class="fa-solid fa-ban"></i></button>`;
+
+                return `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span class="code-pill">${k.keyCode}</span>
+                                <button onclick="copyKey('${k.keyCode}')" class="btn btn-secondary btn-icon" style="width: 26px; height: 26px; font-size: 0.7rem;" title="Salin Serial Key">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                ${k.note || 'Tanpa catatan'}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-single" style="font-size: 0.72rem;">${durationLabel}</span>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td style="font-size: 0.84rem;">${expiryInfo}</td>
+                        <td>${userInfo}</td>
+                        <td style="text-align: right;">
+                            <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
+                                ${pauseResumeBtn}
+                                ${banUnbanBtn}
+                                <button onclick="openSingleTimeModal('${k.id}', '${k.keyCode}')" class="btn btn-secondary btn-icon" title="Tambah Waktu Lisensi (+Time)"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                                <button onclick="deleteKey('${k.id}')" class="btn btn-danger btn-icon" title="Hapus Lisensi"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Copy Key Function
+        function copyKey(code) {
+            navigator.clipboard.writeText(code);
+            showVerifiedGUI(
+                'Serial Key Disalin!',
+                `Kode serial key [${code}] berhasil disalin ke clipboard Anda.`
+            );
+        }
+
+        // Filter Tabs Click
+        document.querySelectorAll('.tab-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.getAttribute('data-filter');
+                applyFilterAndRender();
+            });
+        });
+
+        // Search Input
+        searchKey.addEventListener('input', applyFilterAndRender);
+        btnRefresh.addEventListener('click', () => {
+            loadStats();
+            loadKeys();
+            loadLogs();
+        });
+
+        // Ekspor Keys ke TXT
+        btnExportKeys.addEventListener('click', () => {
+            if (allKeys.length === 0) {
+                showAlert('Tidak ada lisensi untuk diekspor.', 'warning');
+                return;
+            }
+            const content = allKeys.map(k => `${k.keyCode} | ${k.note || '-'} | Status: ${k.currentStatus} | Durasi: ${k.durationType}`).join('\n');
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `AUCT-Keys-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showVerifiedGUI('Ekspor Selesai!', `Sebanyak ${allKeys.length} lisensi key berhasil diekspor.`);
+        });
+
+        // GENERATE SUBMIT
+        document.getElementById('genForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const count = document.getElementById('count').value;
+            const prefix = document.getElementById('prefix').value;
+            const note = document.getElementById('note').value;
+            const durationType = document.getElementById('durationType').value;
+            const durationDays = document.getElementById('durationDays').value;
+
+            try {
+                const res = await fetch('/api/admin/keys/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count, prefix, note, durationType, durationDays })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('genModal');
+                    document.getElementById('genForm').reset();
+                    document.getElementById('prefix').value = 'KEY';
+                    document.getElementById('count').value = '1';
+                    showVerifiedGUI('Generate Sukses!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal generate key lisensi.', 'danger');
+            }
+        });
+
+        // BULK ADD TIME SUBMIT
+        document.getElementById('bulkTimeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const amount = document.getElementById('bulkAmount').value;
+            const unit = document.getElementById('bulkUnit').value;
+            const target = document.getElementById('bulkTarget').value;
+
+            try {
+                const res = await fetch('/api/admin/keys/add-time-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, unit, target })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('bulkTimeModal');
+                    showVerifiedGUI('Penambahan Waktu Berhasil!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal menambahkan waktu massal.', 'danger');
+            }
+        });
+
+        // SINGLE KEY TIME
+        function openSingleTimeModal(id, code) {
+            document.getElementById('singleTimeKeyId').value = id;
+            document.getElementById('singleTimeKeyDisplay').innerText = code;
+            openModal('singleTimeModal');
+        }
+
+        document.getElementById('singleTimeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('singleTimeKeyId').value;
+            const amount = document.getElementById('singleTimeAmount').value;
+            const unit = document.getElementById('singleTimeUnit').value;
+
+            try {
+                const res = await fetch('/api/admin/keys/add-time', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, amount, unit })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('singleTimeModal');
+                    showVerifiedGUI('Waktu Ditambahkan!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal menambah waktu lisensi.', 'danger');
+            }
+        });
+
+        // BAN KEY
+        function openBanModal(id, code) {
+            document.getElementById('banKeyId').value = id;
+            document.getElementById('banKeyDisplay').innerText = code;
+            document.getElementById('banReason').value = '';
+            openModal('banModal');
+        }
+
+        document.getElementById('banForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('banKeyId').value;
+            const reason = document.getElementById('banReason').value;
+
+            try {
+                const res = await fetch('/api/admin/keys/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('banModal');
+                    showVerifiedGUI('Lisensi Diblokir!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal memblokir key.', 'danger');
+            }
+        });
+
+        async function unbanKey(id) {
+            try {
+                const res = await fetch('/api/admin/keys/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showVerifiedGUI('Blokir Dibuka (Unban)!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal unban key.', 'danger');
+            }
+        }
+
+        // PAUSE KEY
+        function openPauseModal(id, code) {
+            document.getElementById('pauseKeyId').value = id;
+            document.getElementById('pauseKeyDisplay').innerText = code;
+            document.getElementById('pauseReason').value = '';
+            openModal('pauseModal');
+        }
+
+        document.getElementById('pauseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('pauseKeyId').value;
+            const reason = document.getElementById('pauseReason').value;
+
+            try {
+                const res = await fetch('/api/admin/keys/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('pauseModal');
+                    showVerifiedGUI('Lisensi Dijeda!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal menjeda lisensi.', 'danger');
+            }
+        });
+
+        async function resumeKey(id) {
+            try {
+                const res = await fetch('/api/admin/keys/resume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showVerifiedGUI('Lisensi Dilanjutkan!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal melanjutkan lisensi.', 'danger');
+            }
+        }
+
+        // GLOBAL PAUSE
+        document.getElementById('globalPauseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const reason = document.getElementById('globalReason').value;
+
+            try {
+                const res = await fetch('/api/admin/global-pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enable: true, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('globalPauseModal');
+                    showVerifiedGUI('Jeda Global Diaktifkan!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                }
+            } catch (err) {
+                showAlert('Gagal mengaktifkan mode jeda global.', 'danger');
+            }
+        });
+
+        btnDisableGlobalPause.addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/admin/global-pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enable: false })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showVerifiedGUI('Jeda Global Dinonaktifkan!', data.message);
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                }
+            } catch (err) {
+                showAlert('Gagal menonaktifkan mode jeda global.', 'danger');
+            }
+        });
+
+        // DELETE KEY
+        async function deleteKey(id) {
+            if (!confirm('Apakah Anda yakin ingin menghapus serial key ini secara permanen?')) return;
+
+            try {
+                const res = await fetch(`/api/admin/keys/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showVerifiedGUI('Key Dihapus!', 'Serial key berhasil dihapus dari database.');
+                    loadStats();
+                    loadKeys();
+                    loadLogs();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            } catch (err) {
+                showAlert('Gagal menghapus key.', 'danger');
+            }
+        }
+
+        // Initial Load
+        checkAuth();
+        loadStats();
+        loadKeys();
+        loadLogs();
+    </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Administrator - AUCT Key Auth</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <span>AUCT Key Auth</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link"><i class="fa-solid fa-arrow-left"></i> Kembali ke Beranda</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div style="max-width: 440px; margin: 3rem auto;">
+            <div class="card">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="width: 64px; height: 64px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; color: var(--brand-blue); margin-bottom: 1.25rem;">
+                        <i class="fa-solid fa-shield-cat"></i>
+                    </div>
+                    <h2 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em;">Masuk ke Admin</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.35rem;">
+                        Panel kontrol manajemen lisensi & keamanan
+                    </p>
+                </div>
+
+                <div id="loginAlert" class="alert"></div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label class="form-label" for="username">
+                            <span><i class="fa-solid fa-user-gear"></i> Nama Pengguna (Username)</span>
+                        </label>
+                        <input type="text" id="username" class="form-control" placeholder="Contoh: admin" required autofocus autocomplete="username">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">
+                            <span><i class="fa-solid fa-lock"></i> Kata Sandi (Password)</span>
+                            <span id="togglePassword" style="cursor: pointer; font-size: 0.8rem; color: var(--brand-blue);"><i class="fa-solid fa-eye"></i> Lihat</span>
+                        </label>
+                        <input type="password" id="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" id="btnLogin" class="btn btn-primary" style="width: 100%; margin-top: 0.75rem; padding: 0.85rem 1rem;">
+                        <i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang
+                    </button>
+                </form>
+
+                <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle); font-size: 0.82rem; color: var(--text-secondary); text-align: center;">
+                    <p>Akun Default: <strong style="color: #fff;">admin</strong> &bull; Sandi: <strong style="color: #fff;">admin123</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Centang Biru Sukses Login -->
+    <div id="loginSuccessModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="verified-icon-wrapper">
+                <div class="verified-circle-glow"></div>
+                <svg class="svg-verified-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            </div>
+
+            <h2 class="modal-title-verified">Autentikasi Berhasil!</h2>
+            <p class="modal-desc-verified">Selamat datang kembali. Mengalihkan ke dashboard kontrol...</p>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 AUCT Key Auth System — Akses Aman & Terenkripsi
+    </footer>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginAlert = document.getElementById('loginAlert');
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const btnLogin = document.getElementById('btnLogin');
+        const loginSuccessModal = document.getElementById('loginSuccessModal');
+
+        // Toggle Password Show/Hide
+        togglePassword.addEventListener('click', () => {
+            const isPassword = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+            togglePassword.innerHTML = isPassword 
+                ? '<i class="fa-solid fa-eye-slash"></i> Sembunyikan' 
+                : '<i class="fa-solid fa-eye"></i> Lihat';
+        });
+
+        // Cek jika sudah login sebelumnya
+        fetch('/api/me')
+            .then(res => res.json())
+            .then(data => {
+                if (data.authenticated) {
+                    window.location.href = '/dashboard';
+                }
+            });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginAlert.style.display = 'none';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            btnLogin.disabled = true;
+            btnLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa Akses...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    loginSuccessModal.classList.add('show');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1200);
+                } else {
+                    btnLogin.disabled = false;
+                    btnLogin.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang';
+                    loginAlert.className = 'alert alert-danger';
+                    loginAlert.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${data.message}`;
+                    loginAlert.style.display = 'block';
+                }
+            } catch (err) {
+                btnLogin.disabled = false;
+                btnLogin.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang';
+                loginAlert.className = 'alert alert-danger';
+                loginAlert.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Gagal menghubungi server login.';
+                loginAlert.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

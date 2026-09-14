@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Aktivasi & Verifikasi Lisensi - AUCT Key Auth</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <span>AUCT Key Auth</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link active"><i class="fa-solid fa-house"></i> Beranda</a>
+            <a href="/login" class="btn btn-primary btn-sm"><i class="fa-solid fa-user-shield"></i> Portal Admin</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero Header -->
+        <div class="hero-header">
+            <div class="hero-pill">
+                <i class="fa-solid fa-shield-halved"></i> Validasi Lisensi Cepat & Aman
+            </div>
+            <h1 class="hero-title">Aktivasi & Cek Lisensi</h1>
+            <p class="hero-desc">
+                Masukkan serial key lisensi Anda di bawah ini untuk memulai aktivasi atau memeriksa sisa masa aktif langganan Anda secara instan.
+            </p>
+        </div>
+
+        <!-- Form Aktivasi Card -->
+        <div class="card" style="max-width: 620px; margin: 0 auto 2.5rem auto;">
+            <h2 class="card-title">
+                <i class="fa-solid fa-fingerprint" style="color: var(--brand-blue);"></i> Formulir Validasi Lisensi
+            </h2>
+            
+            <div id="alertMsg" class="alert"></div>
+
+            <form id="licenseForm">
+                <div class="form-group">
+                    <label class="form-label" for="keyCode">
+                        <span><i class="fa-solid fa-key"></i> Serial Key Lisensi</span>
+                        <span style="font-size: 0.78rem; color: var(--text-tertiary);">Wajib diisi</span>
+                    </label>
+                    <input type="text" id="keyCode" class="form-control key-input" placeholder="Contoh: KEY-A1B2-C3D4-E5F6" required autofocus autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="identifier">
+                        <span><i class="fa-solid fa-id-card"></i> Identitas Perangkat / User (Opsional)</span>
+                        <span style="font-size: 0.78rem; color: var(--text-tertiary);">Nama, PC, atau Bot ID</span>
+                    </label>
+                    <input type="text" id="identifier" class="form-control" placeholder="Contoh: PC-Kantor / User-VIP-01">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-top: 1.75rem;">
+                    <button type="button" id="btnVerify" class="btn btn-secondary">
+                        <i class="fa-solid fa-magnifying-glass"></i> Cek Status Saja
+                    </button>
+                    <button type="submit" id="btnRedeem" class="btn btn-primary">
+                        <i class="fa-solid fa-bolt"></i> Klaim & Aktifkan
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Live Status Card (Tampil jika sudah cek) -->
+        <div id="statusResultCard" class="card" style="display: none; max-width: 620px; margin: 0 auto 2.5rem auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="card-title" id="statusResultTitle" style="margin-bottom: 0;">Status Lisensi</h3>
+                <span id="statusResultBadge" class="badge"></span>
+            </div>
+            <div id="statusResultBody"></div>
+        </div>
+
+        <div class="card" style="max-width: 820px; margin: 0 auto 2rem auto;">
+            <h3 class="card-title">
+                <i class="fa-solid fa-code" style="color: var(--brand-purple);"></i> Panduan Integrasi REST API (Developer Friendly)
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.92rem;">
+                Hubungkan sistem lisensi ini ke aplikasi desktop (Python, C#, C++), bot Discord/Telegram, atau web backend Anda secara langsung menggunakan HTTP POST request.
+            </p>
+
+            <div style="background: rgba(8, 12, 22, 0.9); border: 1px solid var(--border-subtle); padding: 1.25rem; border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #7dd3fc; overflow-x: auto; margin-bottom: 1rem; line-height: 1.5;">
+                <span style="color: #6ee7b7;">// 1. Klaim / Aktivasi Lisensi</span><br>
+                <span style="color: #f472b6;">POST</span> /api/redeem<br>
+                <span style="color: #94a3b8;">Content-Type: application/json</span><br><br>
+                {<br>
+                &nbsp;&nbsp;<span style="color: #93c5fd;">"key"</span>: <span style="color: #fde047;">"KEY-XXXX-XXXX-XXXX"</span>,<br>
+                &nbsp;&nbsp;<span style="color: #93c5fd;">"identifier"</span>: <span style="color: #fde047;">"UserPC-01"</span>,<br>
+                &nbsp;&nbsp;<span style="color: #93c5fd;">"hwid"</span>: <span style="color: #fde047;">"CPU-XXXX-MAC-YYYY"</span> <span style="color: #6b7280;">// ID unik perangkat</span><br>
+                }
+            </div>
+
+            <div style="background: rgba(8, 12, 22, 0.9); border: 1px solid var(--border-subtle); padding: 1.25rem; border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #7dd3fc; overflow-x: auto; margin-bottom: 1rem; line-height: 1.5;">
+                <span style="color: #6ee7b7;">// 2. Cek Status Lisensi (Verify)</span><br>
+                <span style="color: #f472b6;">POST</span> /api/verify<br>
+                <span style="color: #94a3b8;">Content-Type: application/json</span><br><br>
+                {<br>
+                &nbsp;&nbsp;<span style="color: #93c5fd;">"key"</span>: <span style="color: #fde047;">"KEY-XXXX-XXXX-XXXX"</span>,<br>
+                &nbsp;&nbsp;<span style="color: #93c5fd;">"hwid"</span>: <span style="color: #fde047;">"CPU-XXXX-MAC-YYYY"</span> <span style="color: #6b7280;">// wajib jika HWID sudah terikat</span><br>
+                }
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; align-items: flex-start; color: var(--text-secondary); font-size: 0.86rem; background: rgba(255, 255, 255, 0.03); padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+                <i class="fa-solid fa-circle-info" style="color: var(--brand-blue); margin-top: 2px;"></i>
+                <span>Field <code style="color: #93c5fd; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 4px;">hwid</code> digunakan untuk binding <strong>1 Key = 1 Perangkat</strong>. Setelah key pertama kali diaktifkan dengan HWID tertentu, device lain <strong>tidak bisa</strong> menggunakan key yang sama — kecuali admin melakukan <strong>Reset Perangkat</strong> di dashboard.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- GUI CENTANG BIRU (VERIFIED BLUE MODAL)                  -->
+    <!-- ======================================================= -->
+    <div id="verifiedModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="verified-icon-wrapper">
+                <div class="verified-circle-glow"></div>
+                <svg class="svg-verified-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            </div>
+
+            <h2 id="modalVerifiedTitle" class="modal-title-verified">Lisensi Berhasil Diverifikasi!</h2>
+            <p id="modalVerifiedDesc" class="modal-desc-verified">Status serial key Anda sah, resmi, dan aktif di server.</p>
+
+            <div id="modalVerifiedInfo" class="modal-info-box">
+                <!-- Data detail diisi dinamis oleh JavaScript -->
+            </div>
+
+            <button type="button" id="btnCloseVerifiedModal" class="btn btn-primary" style="width: 100%;">
+                <i class="fa-solid fa-check"></i> Mengerti & Lanjutkan
+            </button>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 AUCT Key Auth System — Desain Bersih & Handcrafted
+    </footer>
+
+    <script>
+        const licenseForm = document.getElementById('licenseForm');
+        const alertMsg = document.getElementById('alertMsg');
+        const btnVerify = document.getElementById('btnVerify');
+        const btnRedeem = document.getElementById('btnRedeem');
+        const statusResultCard = document.getElementById('statusResultCard');
+        const statusResultTitle = document.getElementById('statusResultTitle');
+        const statusResultBadge = document.getElementById('statusResultBadge');
+        const statusResultBody = document.getElementById('statusResultBody');
+
+        // ─── HWID GENERATOR (Browser Fingerprint) ───
+        // Menghasilkan ID unik perangkat dari kombinasi properti browser.
+        // Catatan: Untuk proteksi lebih kuat di aplikasi desktop, kirim HWID dari sisi app (CPU ID, MAC, dll).
+        function generateHWID() {
+            const raw = [
+                navigator.userAgent,
+                navigator.language,
+                screen.width + 'x' + screen.height,
+                screen.colorDepth,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.platform,
+                navigator.hardwareConcurrency || 0
+            ].join('|');
+
+            // Simple hash (djb2)
+            let hash = 5381;
+            for (let i = 0; i < raw.length; i++) {
+                hash = ((hash << 5) + hash) ^ raw.charCodeAt(i);
+                hash = hash >>> 0; // Unsigned 32-bit
+            }
+            return 'BF-' + hash.toString(16).toUpperCase().padStart(8, '0');
+        }
+
+        const CLIENT_HWID = generateHWID();
+
+        // Modal GUI Centang Biru Elements
+        const verifiedModal = document.getElementById('verifiedModal');
+        const modalVerifiedTitle = document.getElementById('modalVerifiedTitle');
+        const modalVerifiedDesc = document.getElementById('modalVerifiedDesc');
+        const modalVerifiedInfo = document.getElementById('modalVerifiedInfo');
+        const btnCloseVerifiedModal = document.getElementById('btnCloseVerifiedModal');
+
+        function showVerifiedModal(title, desc, infoHtml) {
+            modalVerifiedTitle.innerText = title;
+            modalVerifiedDesc.innerText = desc;
+            modalVerifiedInfo.innerHTML = infoHtml;
+            verifiedModal.classList.add('show');
+        }
+
+        function closeVerifiedModal() {
+            verifiedModal.classList.remove('show');
+        }
+
+        btnCloseVerifiedModal.addEventListener('click', closeVerifiedModal);
+        verifiedModal.addEventListener('click', (e) => {
+            if (e.target === verifiedModal) closeVerifiedModal();
+        });
+
+        function showAlert(msg, type = 'danger') {
+            alertMsg.className = `alert alert-${type}`;
+            alertMsg.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+            alertMsg.style.display = 'block';
+        }
+
+        function hideAlert() {
+            alertMsg.style.display = 'none';
+        }
+
+        // Cek Status (Verify)
+        btnVerify.addEventListener('click', async () => {
+            hideAlert();
+            const key = document.getElementById('keyCode').value.trim();
+            if (!key) {
+                showAlert('Silakan masukkan serial key lisensi terlebih dahulu!', 'warning');
+                return;
+            }
+
+            btnVerify.disabled = true;
+            btnVerify.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...';
+
+            try {
+                const res = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, hwid: CLIENT_HWID })
+                });
+                const data = await res.json();
+
+                btnVerify.disabled = false;
+                btnVerify.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Cek Status Saja';
+
+                statusResultCard.style.display = 'block';
+
+                if (data.valid) {
+                    statusResultTitle.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--brand-emerald);"></i> Status Lisensi: VALID`;
+                    statusResultBadge.className = 'badge badge-active';
+                    statusResultBadge.innerText = data.key.statusLabel || 'Aktif';
+
+                    const expiryText = data.key.expiresAt 
+                        ? new Date(data.key.expiresAt).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })
+                        : (data.key.durationType === 'lifetime' ? 'Aktif Selamanya (Lifetime)' : (data.key.durationType === 'single' ? '1x Pakai (Belum Digunakan)' : 'Belum Diaktivasi'));
+
+                    statusResultBody.innerHTML = `
+                        <div style="display: grid; gap: 0.6rem;">
+                            <div><strong>Serial Key:</strong> <span class="code-pill">${data.key.keyCode}</span></div>
+                            <div><strong>Keterangan:</strong> ${data.key.note || '-'}</div>
+                            <div><strong>Masa Berlaku:</strong> <span style="color: #6ee7b7;">${expiryText}</span></div>
+                        </div>
+                    `;
+
+                    // Trigger GUI Centang Biru Modal
+                    showVerifiedModal(
+                        'Lisensi Sah & Terverifikasi!',
+                        'Lisensi terdaftar pada server dan dalam keadaan siap pakai.',
+                        `
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Serial Key</span>
+                                <span class="code-pill">${data.key.keyCode}</span>
+                            </div>
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Status</span>
+                                <span style="color: #34d399; font-weight: 700;">${data.key.statusLabel || 'Aktif'}</span>
+                            </div>
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Masa Aktif</span>
+                                <span style="color: #93c5fd;">${expiryText}</span>
+                            </div>
+                        `
+                    );
+                } else {
+                    const statusType = data.status || 'invalid';
+                    let badgeClass = 'badge-danger';
+                    if (statusType === 'paused') badgeClass = 'badge-paused';
+
+                    statusResultTitle.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color: var(--brand-rose);"></i> Status Lisensi: DITOLAK`;
+                    statusResultBadge.className = `badge ${badgeClass}`;
+                    statusResultBadge.innerText = data.key ? data.key.statusLabel : 'Tidak Valid';
+
+                    statusResultBody.innerHTML = `
+                        <div style="color: #fda4af; padding: 0.5rem 0;">
+                            <strong>Alasan:</strong> ${data.message}
+                        </div>
+                    `;
+                    showAlert(data.message, statusType === 'paused' ? 'warning' : 'danger');
+                }
+            } catch (err) {
+                btnVerify.disabled = false;
+                btnVerify.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Cek Status Saja';
+                showAlert('Gagal terhubung ke server. Pastikan koneksi internet Anda lancar.', 'danger');
+            }
+        });
+
+        // Klaim / Redeem Lisensi
+        licenseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const key = document.getElementById('keyCode').value.trim();
+            const identifier = document.getElementById('identifier').value.trim();
+
+            if (!key) {
+                showAlert('Silakan masukkan serial key lisensi terlebih dahulu!', 'warning');
+                return;
+            }
+
+            btnRedeem.disabled = true;
+            btnRedeem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Aktivasi...';
+
+            try {
+                const res = await fetch('/api/redeem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, identifier, hwid: CLIENT_HWID })
+                });
+                const data = await res.json();
+
+                btnRedeem.disabled = false;
+                btnRedeem.innerHTML = '<i class="fa-solid fa-bolt"></i> Klaim & Aktifkan';
+
+                statusResultCard.style.display = 'block';
+
+                if (data.success) {
+                    statusResultTitle.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--brand-emerald);"></i> Aktivasi Berhasil!`;
+                    statusResultBadge.className = 'badge badge-active';
+                    statusResultBadge.innerText = 'Telah Diaktivasi';
+
+                    const expiryText = data.keyInfo.expiresAt 
+                        ? new Date(data.keyInfo.expiresAt).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })
+                        : (data.keyInfo.durationType === 'lifetime' ? 'Aktif Selamanya (Lifetime)' : '1x Pakai Terklaim');
+
+                    statusResultBody.innerHTML = `
+                        <div style="display: grid; gap: 0.6rem;">
+                            <div><strong>Serial Key:</strong> <span class="code-pill">${data.keyInfo.keyCode}</span></div>
+                            <div><strong>Pengguna/Perangkat:</strong> ${data.keyInfo.usedBy || identifier}</div>
+                            <div><strong>Masa Berlaku:</strong> <span style="color: #6ee7b7;">${expiryText}</span></div>
+                        </div>
+                    `;
+
+                    // Tampilkan GUI Centang Biru
+                    showVerifiedModal(
+                        'Aktivasi Lisensi Berhasil!',
+                        'Selamat, serial key Anda telah sukses diaktifkan dan siap digunakan sepenuhnya.',
+                        `
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Serial Key</span>
+                                <span class="code-pill">${data.keyInfo.keyCode}</span>
+                            </div>
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Pengguna</span>
+                                <span style="color: #fff; font-weight: 600;">${data.keyInfo.usedBy || 'Pengguna'}</span>
+                            </div>
+                            <div class="modal-info-row">
+                                <span style="color: var(--text-secondary);">Status Masa Aktif</span>
+                                <span style="color: #34d399; font-weight: 700;">${expiryText}</span>
+                            </div>
+                        `
+                    );
+                } else {
+                    showAlert(data.message, 'danger');
+                    statusResultTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--brand-rose);"></i> Gagal Aktivasi`;
+                    statusResultBadge.className = 'badge badge-banned';
+                    statusResultBadge.innerText = 'Gagal';
+                    statusResultBody.innerHTML = `<p style="color: #fda4af;">${data.message}</p>`;
+                }
+            } catch (err) {
+                btnRedeem.disabled = false;
+                btnRedeem.innerHTML = '<i class="fa-solid fa-bolt"></i> Klaim & Aktifkan';
+                showAlert('Terjadi kendala saat menghubungi server.', 'danger');
+            }
+        });
+    </script>
+</body>
+</html>
