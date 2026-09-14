@@ -1,9 +1,14 @@
-﻿'use strict';
+'use strict';
 const { Pool } = require('pg');
 
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl) {
+    console.error('ERROR: DATABASE_URL tidak ditemukan! Pastikan PostgreSQL terhubung di Railway.');
+}
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    connectionString: dbUrl,
+    ssl: dbUrl ? { rejectUnauthorized: false } : false
 });
 
 function newId() {

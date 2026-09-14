@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const session = require('express-session');
 const bcrypt  = require('bcryptjs');
 const cors    = require('cors');
@@ -8,8 +8,22 @@ const db      = require('./db');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Init DB
-db.initDB().catch(err => { console.error('DB init error:', err); process.exit(1); });
+// Init DB with retry
+async function startDB(retries = 5) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await db.initDB();
+            console.log('Database terhubung!');
+            return;
+        } catch (err) {
+            console.error(`DB init attempt ${i + 1}/${retries} gagal:`, err.message);
+            if (i < retries - 1) await new Promise(r => setTimeout(r, 3000));
+        }
+    }
+    console.error('GAGAL konek database setelah', retries, 'percobaan.');
+    process.exit(1);
+}
+startDB();
 
 app.use(cors());
 app.use(express.json());
